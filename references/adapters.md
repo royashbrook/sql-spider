@@ -75,7 +75,7 @@ Invoke-Sqlcmd -ServerInstance <server> -Database <db> -InputFile stage\20240101-
 > `Invoke-Sqlcmd` can truncate very long `nvarchar` columns (~4000 chars), which is exactly why
 > definitions are pulled in `dNN` chunks rather than as one column; the chunking sidesteps the cap.
 
-**The CSV must be real (RFC-4180-style) CSV** — quoted fields, so embedded commas, quotes, and
+**The CSV must be real (RFC-4180-style) CSV**: quoted fields, so embedded commas, quotes, and
 newlines survive. `Export-Csv` qualifies. Plain `sqlcmd -s ","` does **not**: it never quotes,
 prints a dashed separator row under the header, and renders NULL as the literal word `NULL`, so
 module definitions round-tripped through it come back silently corrupted. If `sqlcmd` is all you
