@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SqlSpider</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- T-SQL parser module: ScriptDom + the Core fact contract it implements. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.18.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../core/SqlSpider.Core.csproj" />
+  </ItemGroup>
+
+</Project>
