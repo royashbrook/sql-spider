@@ -110,7 +110,7 @@ public static class Viz
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sql-spider graph — {{srcName}}</title>
+<title>sql-spider graph: {{srcName}}</title>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
   html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
@@ -128,7 +128,7 @@ public static class Viz
 <body>
 <div id="bar">
   <b>sql-spider</b>
-  <span>{{srcName}} — {{nNodes}} nodes, {{nEdges}} edges</span>
+  <span>{{srcName}}: {{nNodes}} nodes, {{nEdges}} edges</span>
   {{legend}}
   <span style="margin-left:auto;color:#888">drag nodes · scroll to zoom · hover an edge for its relation</span>
 </div>
