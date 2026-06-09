@@ -142,7 +142,7 @@ static class Extractor
     static IDialectExtractor Pick(string dialect) => dialect switch
     {
         "tsql"   => new TSqlExtractor(),
-        "sqlite" => new GenericSqlExtractor(new SqlParser.Dialects.SQLiteDialect()),
+        "sqlite" => GenericSqlExtractor.Sqlite(),
         _ => throw new CliError($"unknown dialect '{dialect}' (known: tsql, sqlite)")
     };
 

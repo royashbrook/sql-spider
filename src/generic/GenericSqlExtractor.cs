@@ -32,6 +32,12 @@ public sealed class GenericSqlExtractor : IDialectExtractor
     readonly Dialect _dialect;
     public GenericSqlExtractor(Dialect dialect) { _dialect = dialect; }
 
+    // Factory so the CLI can select this dialect WITHOUT naming a SqlParser type itself.
+    // This keeps the SqlParser package dependency fully encapsulated in this module: the CLI
+    // references the parser MODULE (SqlSpider.Generic), never the parser PACKAGE (SqlParserCS).
+    // That is the pluggable split -- and it lets the root project build on its own.
+    public static GenericSqlExtractor Sqlite() => new GenericSqlExtractor(new SQLiteDialect());
+
     // bracketed/quoted identifiers -> bare lowercase name; schema-qualified -> last part.
     static string Last(ObjectName o) => o.Values[^1].Value.ToLowerInvariant();
 
