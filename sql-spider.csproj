@@ -11,6 +11,11 @@
     <!-- compile ONLY this CLI file; the library sources under src/ come in purely as
          referenced ASSEMBLIES, never recompiled into the exe (keeps the split honest). -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- The parser packages (ScriptDom, SqlParserCS) reach this exe only transitively, through
+         the parser MODULES. Force every transitive runtime assembly into the exe output so the
+         dialects resolve at runtime regardless of build order (a plain `dotnet build` then
+         `dotnet run` otherwise leaves ScriptDom.dll out of the output and fails at runtime). -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <!--
