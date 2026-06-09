@@ -296,6 +296,28 @@ graphify for clustering and query if you want to go further than the built-in `v
 of this tool and none is planned. The value is the pluggable-parser engine and the
 spider-to-closure loop, delivered as a drop-in skill, not a contribution to another codebase.
 
+**Names are database-scoped, not schema-scoped (a deliberate choice).** The extractor identifies
+objects by bare name: `[dbo].[Foo]`, `dbo.Foo`, and `FOO` all resolve to one node, which is what
+you want inside one database. The flip side: two same-named objects in *different* schemas
+(`sales.orders` vs `archive.orders`) merge into one node. We kept it that way because the spider's
+unit of work is one database reached through one adapter, and single-name identity keeps every
+join (frontier, absorb, reverse) simple and predictable. If your map genuinely spans schemas or
+databases, run the loop once per scope and combine afterward: the boundary edges of one closed
+graph (references that leave the scope) are the *seeds* for the next scan, and the resulting
+`graph.json` files merge on node id (`graphify merge-graphs a.json b.json` does exactly this, or
+a few lines of json union). Not turnkey, but the bones are all here, and an agent driving the
+skill can do it without new tooling.
+
+## Tests
+
+```sh
+bash tests/run-tests.sh
+```
+
+End-to-end regression tests that drive the real CLI against small fixture corpora: the shipped
+examples must close with their documented numbers, and each fixture encodes a specific fixed bug
+(if one fails, that bug is back). CI runs the same script on every push.
+
 ## A real run (how we actually used it)
 
 This tool started as a way to map a database we **couldn't connect to directly**: a

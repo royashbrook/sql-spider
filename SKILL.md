@@ -150,6 +150,13 @@ You are done when the frontier is empty **and** the graph is one connected compo
 orphans. The closure audit is the gate; `extract` even returns a non-zero exit code while the graph
 is still unclosed, so it can be wired into CI.
 
+One scope note: node identity is database-scoped bare names (schema prefixes are dropped), so one
+spider run maps ONE database. If the user's question spans schemas or databases, run the loop once
+per scope, use the boundary edges of the first closed graph (references that point outside it) as
+the seeds for the next scan, then merge the resulting `graph.json` files on node id
+(`graphify merge-graphs`, or a small json union). You can drive that whole sequence yourself; it
+needs no new tooling.
+
 Not every object closes by edges, and that is fine: a genuinely standalone object (an app-only
 function, a version/archive table referenced only from outside the database) is reported **with a
 reason**, not as an error. The honest invariant is "zero orphans *from extraction misses*": when a
