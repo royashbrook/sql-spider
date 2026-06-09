@@ -57,7 +57,7 @@ static class Cli
         Console.WriteLine(@"sql-spider  -  deterministic T-SQL dependency graph + spider-to-closure
 
 usage:
-  sql-spider extract  <corpus-dir> [graph.json] [frontier.json] [--dialect tsql|sqlite] [--graphify [out.json]]
+  sql-spider extract  <corpus-dir> [graph.json] [frontier.json] [--dialect tsql|sqlite] [--graphify [out.json]] [--graphify-standard]
   sql-spider seed     <root-object> <outdir>
   sql-spider generate <frontier.json> <outdir>
   sql-spider reverse  <referencers.csv> <outdir> [--roots a b ...]

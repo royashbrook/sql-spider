@@ -241,24 +241,33 @@ Invoke-Sqlcmd -ServerInstance <server> -Database <db> -InputFile stage\20240101-
 ## Pairing with graphify (and a quick look)
 
 sql-spider stands on its own: it builds and closes the dependency graph, and `viz` (below) shows
-it with zero install. We built it that way first. The graphify pairing was the second step — a way
-to plug the closed graph into a richer knowledge-graph tool — so it is an **opt-in switch**, not a
+it with zero install. We built it that way first. The graphify pairing came second, as a way to
+plug the closed graph into a richer knowledge-graph tool, so it is an **opt-in switch**, not a
 dependency.
 
-Pass `--graphify` to *also* write a graphify-format graph alongside the native one:
+Pass `--graphify` to *also* write a graphify-format graph alongside the native one. Use the flag,
+do not copy the native `graph.json` into graphify (it is a directed multigraph and gets under-read
+raw):
 
 ```sh
 dotnet run -- extract corpus/ --graphify     # writes corpus/graph.json AND corpus/graphify-out/graph.json
 graphify cluster-only corpus/                 # community detection + report   (graphify, installed separately)
 ```
 
-The native `graph.json` is always written and unchanged — it carries sql-spider's full vocabulary
-(`fk` / `reads` / `writes` / `calls` / `join_key`, plus per-node metadata). The `--graphify` file is
-a separate, lossy projection of the same graph onto [graphify](https://github.com/safishamsi/graphify)'s
-fixed relation set (fk/reads/writes → `references`, calls → `calls`, shared columns →
-`shares_data_with`) with `confidence_score` added, so it drops straight into graphify's `cluster-only`
-/ `query` / `path` / `explain` / `merge-graphs`. graphify is installed separately (`uv tool install
-graphifyy`); if you don't use it, ignore the flag.
+The native `graph.json` is always written and unchanged. The `--graphify` file is a separate,
+graphify-shaped copy of the same graph (top-level `nodes`/`edges`/`hyperedges`, `confidence_score`
+added) that drops straight into [graphify](https://github.com/safishamsi/graphify)'s `cluster-only`
+/ `query` / `path` / `explain` / `merge-graphs`. By default it **keeps sql-spider's own relation
+vocabulary** (`fk` / `references` / `writes` / `calls` / `join_key`); graphify ingests arbitrary
+relations fine, and the read-vs-write split is the most useful signal for "what actually writes this
+table." Add `--graphify-standard` to collapse onto graphify's blessed enum instead
+(`references` / `calls` / `shares_data_with`), which is handy when you are merging many databases and
+want one uniform vocabulary. graphify is installed separately (`uv tool install graphifyy`); if you
+don't use it, ignore the flag.
+
+> Tip: to ask graphify "how is table X used", use `graphify explain X`, not `query X`. A referenced
+> table is a sink (its edges point inward), so an outward `query` returns just the table itself,
+> while `explain` shows the inbound edges that answer the question.
 
 If you just want a quick look without installing anything, `viz` renders the native `graph.json`
 to a standalone HTML file:

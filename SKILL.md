@@ -158,26 +158,39 @@ node is isolated, the audit tells you whether it is a real gap to pull or a true
 ## Step 6 — view it, and (optional) hand off to graphify
 
 You already have a viewer, no install needed: `spider viz <graph.json>` writes a self-contained
-interactive HTML (force-directed, draggable, colored by kind) — open it in any browser. For most
+interactive HTML (force-directed, draggable, colored by kind). Open it in any browser. For most
 uses that is all you need.
 
 **If graphify is installed, offer to hand the closed graph to it.** graphify
 (https://github.com/safishamsi/graphify) turns a graph into a queryable knowledge graph with
-community detection and `query` / `path` / `explain`. As an agent, check whether it is available —
-a `graphify` command on PATH, a `graphify` skill, or an existing `graphify-out/` in the project —
-and if so, ask the user whether to also emit the graphify view and hand it over:
+community detection and `query` / `path` / `explain`. As an agent, check whether it is available (a
+`graphify` command on PATH, a `graphify` skill, or an existing `graphify-out/` in the project), and
+if so, ask the user whether to also emit the graphify view and hand it over.
+
+**Use `--graphify`, do not copy the native `graph.json` into graphify.** The native graph is a
+directed multigraph; handed to graphify raw it gets under-read. The `--graphify` flag writes a
+separate, graphify-shaped file and leaves the native `graph.json` untouched:
 
 ```sh
-spider extract corpus/ --graphify     # writes BOTH the native graph.json AND graphify-out/graph.json
-graphify cluster-only corpus/          # cluster + report it   (or just /graphify)
+spider extract corpus/ --graphify     # writes native graph.json AND graphify-out/graph.json
+graphify cluster-only corpus/          # cluster + report   (or just /graphify)
 ```
 
-`--graphify` is opt-in and additive: the native `graph.json` (with sql-spider's full
-fk / reads / writes / calls detail) is always written and never changed. The graphify file is a
-separate, relation-mapped projection — sql-spider's vocabulary collapsed onto graphify's fixed
-relations (fk/reads/writes → `references`, calls → `calls`, shared columns → `shares_data_with`) —
-that drops straight into graphify. If graphify is not installed, skip all this; `viz` already shows
-the graph and sql-spider's job is done once it is closed.
+Two things worth knowing, both learned on a real run:
+
+- **Relation vocab (default keeps ours).** The projection keeps sql-spider's own relations by
+  default (`fk` / `references` / `writes` / `calls` / `join_key`). graphify ingests them fine, and
+  the read-vs-write split is the most useful signal for "what actually updates this table." Add
+  `--graphify-standard` to collapse onto graphify's blessed enum instead (`references` / `calls` /
+  `shares_data_with`), which is handy when you are merging many databases and want one uniform vocab.
+- **Asking how a table is used.** Reach for graphify `explain X`, not `query X`. A referenced table
+  is a sink (edges point inward), so `query` (an outward walk) returns just the table itself, while
+  `explain` shows the inbound edges that answer the question.
+
+In our own use we mapped a billing subsystem to a closed graph and answered "what depends on this"
+straight from it, opening only the one procedure the graph pointed at. graphify's own docs cover the
+rest of what the knowledge graph buys you. If graphify is not installed, skip all this; `viz` already
+shows the graph, and sql-spider's job is done once it is closed.
 
 ## Guardrails
 
@@ -197,7 +210,7 @@ the graph and sql-spider's job is done once it is closed.
 
 | command | what it does |
 |---|---|
-| `extract <corpus-dir> [graph.json] [frontier.json] [--dialect tsql\|sqlite] [--graphify [out.json]]` | parse `*.sql` into a dependency graph + frontier + audits; `--graphify` also writes a graphify-format graph |
+| `extract <corpus-dir> [graph.json] [frontier.json] [--dialect tsql\|sqlite] [--graphify [out.json]] [--graphify-standard]` | parse `*.sql` into a dependency graph + frontier + audits; `--graphify` also writes a graphify-format graph (`--graphify-standard` uses graphify's blessed relation vocab) |
 | `seed <root-object> <outdir>` | cold-start pull queries for one root on an empty corpus |
 | `generate <frontier.json> <outdir>` | forward-pull queries for the current frontier |
 | `reverse <referencers.csv> <outdir> [--roots a b]` | pull module defs of objects that reference the roots (one reverse level) |

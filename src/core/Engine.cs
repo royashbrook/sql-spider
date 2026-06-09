@@ -21,6 +21,7 @@ public static class Engine
         //   convention), so `graphify cluster-only <corpus>` / `/graphify` just works after.
         string dialect = "tsql";
         bool graphify = false;
+        bool graphifyStandard = false;   // collapse to graphify's blessed enum (default: keep our richer vocab)
         string? graphifyOut = null;
         var pos = new List<string>();
         for (int i = 0; i < args.Length; i++)
@@ -31,6 +32,7 @@ public static class Engine
                 graphify = true;
                 if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) graphifyOut = args[++i];
             }
+            else if (args[i] == "--graphify-standard") { graphify = true; graphifyStandard = true; }
             else pos.Add(args[i]);
         }
 
@@ -154,7 +156,7 @@ public static class Engine
         if (graphify)
         {
             graphifyPath = graphifyOut ?? Path.Combine(dir, "graphify-out", "graph.json");
-            WriteGraphify(graphifyPath, jnodes, jlinks);
+            WriteGraphify(graphifyPath, jnodes, jlinks, graphifyStandard);
         }
 
         // ---- connected-components audit (the success condition: ZERO orphans, ONE component) ----
@@ -225,7 +227,8 @@ public static class Engine
         Console.WriteLine($"wrote {frontOut}");
         if (graphifyPath != null)
         {
-            Console.WriteLine($"wrote {graphifyPath}  (graphify format -- relations mapped to graphify's vocab)");
+            var vocab = graphifyStandard ? "graphify's standard relation vocab" : "our native vocab (read/write/fk preserved)";
+            Console.WriteLine($"wrote {graphifyPath}  (graphify format, {vocab})");
             Console.WriteLine($"  -> hand to graphify:  graphify cluster-only \"{dir}\"   (or  /graphify)");
         }
 
@@ -262,11 +265,13 @@ public static class Engine
 
     // ---- graphify projection -------------------------------------------------
     // Write the same nodes/edges in graphify's graph.json schema: top-level nodes/edges/hyperedges,
-    // each edge's relation mapped onto graphify's fixed relation vocabulary, confidence_score added.
-    // This is a LOSSY view of the native graph -- sql-spider's fk / writes / join_key distinctions
-    // collapse into graphify's references / shares_data_with. The native graph.json keeps the detail;
-    // this file exists only to plug into graphify (cluster / query / explain / merge-graphs).
-    static void WriteGraphify(string path, List<Dictionary<string, object>> jnodes, List<Dictionary<string, object>> jlinks)
+    // with confidence_score added. graphify ingests arbitrary relation strings, so by DEFAULT we
+    // keep our richer native vocab (fk / reads-references / writes / calls / join_key) -- the
+    // read-vs-write split is the most useful provenance signal and graphify carries the label
+    // through. Pass standardVocab=true (--graphify-standard) to collapse onto graphify's blessed
+    // enum instead (references / calls / shares_data_with), e.g. when merging many DBs and you
+    // want one uniform vocabulary across them.
+    static void WriteGraphify(string path, List<Dictionary<string, object>> jnodes, List<Dictionary<string, object>> jlinks, bool standardVocab)
     {
         var gnodes = jnodes.Select(n => new Dictionary<string, object>
         {
@@ -276,7 +281,7 @@ public static class Engine
         var gedges = jlinks.Select(l => new Dictionary<string, object>
         {
             ["source"] = l["source"], ["target"] = l["target"],
-            ["relation"] = GraphifyRelation((string)l["relation"]),
+            ["relation"] = standardVocab ? GraphifyRelation((string)l["relation"]) : (string)l["relation"],
             ["confidence"] = "EXTRACTED", ["confidence_score"] = 1.0,
             ["source_file"] = l["source_file"], ["weight"] = l["weight"]
         }).ToList();
