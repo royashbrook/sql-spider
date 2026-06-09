@@ -62,11 +62,13 @@ are now **defined**, so they leave the frontier, but their *own* foreign keys in
 next ring:
 
 ```
-FRONTIER: 0 undefined procs, 6 undefined tables (the spider's next pull)
+FRONTIER: 1 undefined procs, 6 undefined tables (the spider's next pull)
 ```
 
-The frontier shrank from 7 to 6 (`stateprovince`, `currency`, `person`, `store`, `employee`,
-`countryregion`). This is the loop working: each pull defines a ring and reveals a smaller one.
+The frontier shrank from 7 tables to 6 (`stateprovince`, `currency`, `person`, `store`,
+`employee`, `countryregion`), and a function appeared: the pulled DDL calls `ufnLeadingZeros`,
+so the spider now wants its module definition too (functions ride the same `sys.sql_modules`
+pull as procs). This is the loop working: each pull defines a ring and reveals the next one.
 
 ### `step3-closed/`: the second pull, folded in → closure
 
@@ -81,7 +83,7 @@ FRONTIER: 0 undefined procs, 0 undefined tables (the spider's next pull)
 ```
 
 The frontier is **empty** and the graph is one connected component with zero orphans. The
-spider is **done**. Frontier `7 → 6 → 0` across three passes.
+spider is **done**. Frontier `7 tables → 6 tables + 1 function → 0` across three passes.
 
 ## The two things the tool reports each pass
 

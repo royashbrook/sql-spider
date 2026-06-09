@@ -81,7 +81,7 @@ frontier examples/adventureworks/step3-closed "$out/step3-graph.json" "$out/step
 echo
 echo "############################################################"
 echo "# SUMMARY: the loop never changed. seed -> extract -> read frontier -> generate ->"
-echo "# (run on your server) -> absorb -> extract. The frontier shrank 7 -> 6 -> 0."
+echo "# (run on your server) -> absorb -> extract. The frontier shrank 7 tables -> 6 tables + 1 function -> 0."
 echo "# At any step, the union of all the .sql you've gathered IS your current full DDL."
 echo "#"
 echo "# On the FULL AdventureWorks script a few objects stay genuinely standalone (app-only"

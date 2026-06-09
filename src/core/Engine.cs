@@ -43,6 +43,9 @@ public static class Engine
         if (!Directory.Exists(dir)) throw new CliError($"corpus dir not found: {dir}");
 
         var files = Directory.GetFiles(dir, "*.sql").OrderBy(x => x).ToArray();
+        // an empty corpus used to be vacuously "closed" (0 components <= 1) -- a typo'd dir or a
+        // forgotten absorb would pass the CI gate. fail loudly instead.
+        if (files.Length == 0) throw new CliError($"no .sql files in corpus dir: {dir}");
 
         // ---- DIALECT SEAM: SQL text -> dependency facts. the only dialect-specific step. ----
         var extractor = pick(dialect);
@@ -111,7 +114,9 @@ public static class Engine
         var edgeSet = edges.GroupBy(e => (e.from, e.to, e.rel)).Select(g => g.First()).ToList();
 
         // ---- FRONTIER: referenced but not defined in this corpus = the spider's next pull ----
-        var frontierProcs  = nodes.Where(n => n.Value.kind == "proc"  && !defined.ContainsKey(n.Key)).Select(n => n.Key).OrderBy(x => x).ToList();
+        // functions ride with procs: both live in sys.sql_modules, so the same module-def pull
+        // covers them. without this an undefined UDF passed the closure audit silently.
+        var frontierProcs  = nodes.Where(n => (n.Value.kind == "proc" || n.Value.kind == "function") && !defined.ContainsKey(n.Key)).Select(n => n.Key).OrderBy(x => x).ToList();
         var frontierTables = nodes.Where(n => n.Value.kind == "table" && !defined.ContainsKey(n.Key)).Select(n => n.Key).OrderBy(x => x).ToList();
 
         // ---- relationship-bearing column layer: only columns shared across 3+ real tables (join keys) ----

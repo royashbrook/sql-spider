@@ -149,19 +149,29 @@ public sealed class GenericSqlExtractor : IDialectExtractor
         if (!nameM.Success) return;
         var c = new Container { Name = nameM.Groups["n"].Value.ToLowerInvariant(), Kind = "trigger", Defined = true };
         if (onM.Success) c.Reads.Add(onM.Groups["t"].Value.ToLowerInvariant());   // the table it watches
-        foreach (Match m in Regex.Matches(text, @"\b(?:insert\s+into|update|delete\s+from)\s+[\[""`]?(?<t>[A-Za-z0-9_]+)", RegexOptions.IgnoreCase))
+        // scan the BODY only (after BEGIN, or after the ON clause if there's no BEGIN). running the
+        // write-regex over the whole text matched the HEADER's "BEFORE UPDATE ON c" and produced a
+        // phantom write to a table named "on" -- which landed on the frontier and broke closure.
+        var beginM = Regex.Match(text, @"\bbegin\b", RegexOptions.IgnoreCase);
+        var body = beginM.Success ? text[(beginM.Index + beginM.Length)..]
+                 : onM.Success   ? text[(onM.Index + onM.Length)..]
+                 : text;
+        foreach (Match m in Regex.Matches(body, @"\b(?:insert\s+into|update|delete\s+from)\s+[\[""`]?(?<t>[A-Za-z0-9_]+)", RegexOptions.IgnoreCase))
             c.Writes.Add(m.Groups["t"].Value.ToLowerInvariant());
-        foreach (Match m in Regex.Matches(text, @"\b(?:from|join)\s+[\[""`]?(?<t>[A-Za-z0-9_]+)", RegexOptions.IgnoreCase))
+        foreach (Match m in Regex.Matches(body, @"\b(?:from|join)\s+[\[""`]?(?<t>[A-Za-z0-9_]+)", RegexOptions.IgnoreCase))
             c.Reads.Add(m.Groups["t"].Value.ToLowerInvariant());
         ff.Containers.Add(c);
     }
 
-    // split SQL on top-level semicolons, respecting single/double/backtick/bracket quoting and
-    // -- / /* */ comments, so a `;` inside a string or a trigger body BEGIN..END doesn't split.
+    // split SQL on top-level semicolons, respecting single/double/backtick/bracket quoting,
+    // -- / /* */ comments, AND BEGIN..END nesting -- a `;` inside a trigger body's BEGIN..END
+    // must not split (it used to: multi-statement trigger bodies truncated at the first `;`,
+    // losing every edge after the first statement). CASE..END also pairs with END, so both
+    // BEGIN and CASE push depth.
     static IEnumerable<string> SplitStatements(string sql)
     {
         var sb = new System.Text.StringBuilder();
-        char quote = '\0'; bool lineComment = false, blockComment = false;
+        char quote = '\0'; bool lineComment = false, blockComment = false; int depth = 0;
         for (int i = 0; i < sql.Length; i++)
         {
             char ch = sql[i];
@@ -178,7 +188,28 @@ public sealed class GenericSqlExtractor : IDialectExtractor
             if (ch == '/' && nx == '*') { blockComment = true; sb.Append(ch); continue; }
             if (ch is '\'' or '"' or '`') { quote = ch; sb.Append(ch); continue; }
             if (ch == '[') { quote = ']'; sb.Append(ch); continue; }
-            if (ch == ';') { yield return sb.ToString(); sb.Clear(); continue; }
+            if (char.IsLetter(ch) && (i == 0 || !char.IsLetterOrDigit(sql[i - 1]) && sql[i - 1] != '_'))
+            {
+                int j = i;
+                while (j < sql.Length && (char.IsLetterOrDigit(sql[j]) || sql[j] == '_')) j++;
+                var word = sql[i..j].ToLowerInvariant();
+                if (word == "begin")
+                {
+                    // `BEGIN TRANSACTION;` / bare `BEGIN;` (sqlite dumps open with one) is a
+                    // transaction start closed by COMMIT, not END -- it must NOT push block depth.
+                    int k = j; while (k < sql.Length && char.IsWhiteSpace(sql[k])) k++;
+                    int k2 = k; while (k2 < sql.Length && (char.IsLetterOrDigit(sql[k2]) || sql[k2] == '_')) k2++;
+                    var next = sql[k..k2].ToLowerInvariant();
+                    bool txn = next is "transaction" or "deferred" or "immediate" or "exclusive" || (k < sql.Length && sql[k] == ';');
+                    if (!txn) depth++;
+                }
+                else if (word == "case") depth++;
+                else if (word == "end" && depth > 0) depth--;
+                sb.Append(sql, i, j - i);
+                i = j - 1;
+                continue;
+            }
+            if (ch == ';' && depth == 0) { yield return sb.ToString(); sb.Clear(); continue; }
             sb.Append(ch);
         }
         if (sb.ToString().Trim().Length > 0) yield return sb.ToString();

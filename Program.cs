@@ -96,7 +96,7 @@ or one reviewable round at a time:
         var vizPath     = Path.Combine(corpus, "graph.html");
         var nextDir     = Path.Combine(corpus, "_next");
 
-        Extractor.Run(new[] { corpus, graphPath, frontPath }.Concat(dialectArgs).ToArray());
+        var auditRc = Extractor.Run(new[] { corpus, graphPath, frontPath }.Concat(dialectArgs).ToArray());
         Viz.Run(new[] { graphPath, vizPath });
 
         var (procs, tables) = FrontierCounts(frontPath);
@@ -107,7 +107,9 @@ or one reviewable round at a time:
         if (procs + tables == 0)
         {
             Console.WriteLine("frontier is EMPTY -> nothing left to pull (see the audit above for closure).");
-            return 0;
+            // the FINAL round's exit code is the closure audit's verdict -- an empty frontier with a
+            // disconnected graph must not report success to a CI gate.
+            return auditRc;
         }
         Orchestrator.Generate(new[] { frontPath, nextDir });
         Console.WriteLine($"frontier: {procs} procs + {tables} tables still to pull -> queries staged in {nextDir}/");

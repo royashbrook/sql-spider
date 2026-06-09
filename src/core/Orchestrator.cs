@@ -212,7 +212,7 @@ public static class Orchestrator
         var refs = new SortedSet<string>();
         foreach (var r in Csv.Read(csvPath))
         {
-            var referenced = (r.GetValueOrDefault("referenced") ?? "").ToLowerInvariant();
+            var referenced = (r.GetValueOrDefault("referenced") ?? "").Trim().ToLowerInvariant();   // sqlcmd right-pads; untrimmed values silently empty the sweep
             if (roots.Count == 0 || roots.Contains(referenced))
             {
                 var name = (r.GetValueOrDefault("referencing") ?? "").Trim().ToLowerInvariant();
@@ -242,6 +242,12 @@ public static class Orchestrator
         if (corpus == null) throw new CliError("usage: absorb <csv> [csv ...] --corpus <dir>");
         if (csvs.Count == 0) throw new CliError("absorb: no CSV files given");
         Directory.CreateDirectory(corpus);
+
+        // FK parking lot: pulled FK edges wait here until their owning table has a .sql file in the
+        // corpus, then materialize as `alter table ... add foreign key` DDL appended to that file --
+        // so the normal extract FK parsing picks them up and FK-only rings actually close. (the old
+        // behavior wrote a sidecar json that NOTHING read; the loop silently declared closure early.)
+        var fkParked = LoadFkPark(corpus);
 
         int wrote = 0;
         foreach (var path in csvs)
@@ -285,23 +291,26 @@ public static class Orchestrator
                     {
                         var dt = (r.GetValueOrDefault("data_type") ?? "varchar").Trim().ToLowerInvariant();
                         var ml = (r.GetValueOrDefault("max_length") ?? "").Trim();
+                        if (ml == "-1") ml = "max";   // information_schema reports (n)varchar(max) as -1; nvarchar(-1) is unparseable
                         if (ml.Length > 0 && (dt is "varchar" or "nvarchar" or "char" or "nchar")) dt = $"{dt}({ml})";
                         var nullable = (r.GetValueOrDefault("is_nullable") ?? "").Trim().ToUpperInvariant();
                         var nn = (nullable is "YES" or "TRUE" or "1") ? "" : " not null";
                         var cn = (r.GetValueOrDefault("column_name") ?? "").Trim().ToLowerInvariant();
-                        cols.Add($"    , {cn} {dt}{nn}");
+                        // bracket identifiers: reserved-word or space-containing names ('order', 'my col')
+                        // otherwise synthesize unparseable DDL and the table livelocks on the frontier
+                        cols.Add($"    , [{cn}] {dt}{nn}");
                     }
                     // first column has no leading comma
-                    var body = $"create table {t} (\n      " + (cols.Count > 0 ? string.Join("\n", cols)[6..] : "") + "\n)\n";
+                    var body = $"create table [{t}] (\n      " + (cols.Count > 0 ? string.Join("\n", cols)[6..] : "") + "\n)\n";
                     File.WriteAllText(Path.Combine(corpus, SafeName(t) + ".sql"), body);
                     wrote++;
                 }
                 Console.WriteLine($"  {path}: absorbed schema for {tbls.Count} tables");
             }
-            else if (hdr.Contains("fk_table"))                                     // fk edges -> sidecar json
+            else if (hdr.Contains("fk_table"))                                     // fk edges -> park, then materialize as DDL
             {
-                File.AppendAllText(Path.Combine(corpus, "_fk_edges.json"), JsonSerializer.Serialize(rows) + "\n");
-                Console.WriteLine($"  {path}: recorded {rows.Count} fk edges (-> _fk_edges.json)");
+                foreach (var r in rows) fkParked.Add(r);
+                Console.WriteLine($"  {path}: collected {rows.Count} fk edges (materialized as alter-table DDL below)");
             }
             else if (hdr.Contains("referencing"))                                  // reverse roots -> proc list to pull next
             {
@@ -314,8 +323,50 @@ public static class Orchestrator
                 Console.WriteLine($"  {path}: UNRECOGNIZED header [{string.Join(", ", hdr.OrderBy(x => x))}]");
             }
         }
+        MaterializeFks(corpus, fkParked);
         Console.WriteLine($"absorbed -> {wrote} new .sql files in {corpus}");
         return 0;
+    }
+
+    // ----- FK materialization: parked fk rows -> alter-table DDL in the owning table's .sql -----
+    static string FkParkPath(string corpus) => Path.Combine(corpus, "_fk_edges.json");
+
+    static List<Dictionary<string, string>> LoadFkPark(string corpus)
+    {
+        var p = FkParkPath(corpus);
+        if (!File.Exists(p)) return new();
+        try
+        {
+            return JsonSerializer.Deserialize<List<Dictionary<string, string>>>(File.ReadAllText(p)) ?? new();
+        }
+        catch (JsonException) { return new(); }   // pre-fix concatenated-array files: start fresh, rows re-pull
+    }
+
+    static void MaterializeFks(string corpus, List<Dictionary<string, string>> parked)
+    {
+        var still = new List<Dictionary<string, string>>();
+        int made = 0;
+        foreach (var r in parked)
+        {
+            var ft = (r.GetValueOrDefault("fk_table") ?? "").Trim().ToLowerInvariant();
+            var fc = (r.GetValueOrDefault("fk_column") ?? "").Trim().ToLowerInvariant();
+            var pt = (r.GetValueOrDefault("pk_table") ?? "").Trim().ToLowerInvariant();
+            var pc = (r.GetValueOrDefault("pk_column") ?? "").Trim().ToLowerInvariant();
+            if (ft.Length == 0 || fc.Length == 0 || pt.Length == 0 || pc.Length == 0) continue;
+            var file = Path.Combine(corpus, SafeName(ft) + ".sql");
+            if (!File.Exists(file)) { still.Add(r); continue; }   // table not pulled yet; park for a later absorb
+            var stmt = $"alter table [{ft}] add foreign key ([{fc}]) references [{pt}] ([{pc}]);";
+            var cur = File.ReadAllText(file);
+            if (!cur.Contains(stmt)) { File.AppendAllText(file, (cur.EndsWith("\n") ? "" : "\n") + stmt + "\n"); made++; }
+        }
+        if (made > 0) Console.WriteLine($"  materialized {made} fk constraints into corpus DDL");
+        var park = FkParkPath(corpus);
+        if (still.Count > 0)
+        {
+            File.WriteAllText(park, JsonSerializer.Serialize(still));
+            Console.WriteLine($"  {still.Count} fk edges parked (owning tables not in the corpus yet -> {Path.GetFileName(park)})");
+        }
+        else if (File.Exists(park)) File.Delete(park);
     }
 
     static int Ord(Dictionary<string, string> r) => int.TryParse(r.GetValueOrDefault("ordinal"), out var n) ? n : 0;

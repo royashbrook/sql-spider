@@ -165,7 +165,7 @@ audit, same `viz`, only the parser changed.
 Northwind closes in one pass; it doesn't show the *loop*. `examples/adventureworks/` does: a
 stepped walk-through of the spider with **no live database**. It seeds on one table
 (`Sales.SalesOrderHeader`) and stages each pull by hand, so you watch the frontier shrink ring
-by ring (`7 → 6 → 0`) until it closes:
+by ring (`7 tables → 6 tables + 1 function → 0`) until it closes:
 
 ```sh
 bash examples/adventureworks/demo.sh
@@ -227,16 +227,17 @@ The CSV column contract is just the column names the emitted queries produce (`o
 FK edges, `referencing`/`referenced` for reverse deps). Any adapter that produces those columns
 works. Two common ones:
 
-```sh
-# sqlcmd (cross-platform), CSV output
-sqlcmd -S <server> -d <db> -i stage/20240101-ProcDefs.sql -s "," -W -o stage/20240101-ProcDefs.csv
+```powershell
+# PowerShell / Invoke-Sqlcmd (works everywhere PowerShell does, including Linux/macOS)
+Invoke-Sqlcmd -ServerInstance <server> -Database <db> -InputFile stage\20240101-ProcDefs.sql |
+  Export-Csv -NoTypeInformation -Encoding utf8 -Path stage\20240101-ProcDefs.csv
 ```
 
-```powershell
-# PowerShell / Invoke-Sqlcmd
-Invoke-Sqlcmd -ServerInstance <server> -Database <db> -InputFile stage\20240101-ProcDefs.sql |
-  Export-Csv -NoTypeInformation -Path stage\20240101-ProcDefs.csv
-```
+> Your adapter must emit **real (RFC-4180-style) CSV**: quoted fields, so embedded commas,
+> quotes, and newlines survive. `Export-Csv` does this. Plain `sqlcmd -s ","` does **not** (it
+> never quotes, prints a dashed separator row, and renders NULL as the literal word): module
+> definitions round-tripped through it come back corrupted. If you use `sqlcmd`, post-process its
+> output into proper CSV, or use any client library that writes quoted CSV.
 
 ## Pairing with graphify (and a quick look)
 

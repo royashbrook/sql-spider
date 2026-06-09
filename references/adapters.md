@@ -18,7 +18,7 @@ shapes you will see:
   `substring` chunks across the `dNN` columns (a driver may cap a single column at ~4000–8000 chars);
   `absorb` reassembles them in order. If a body is still truncated, re-pull it with more chunks.
 - **Table schema**: `table_name`, `column_name`, `data_type`, nullability, ordinal, etc.
-- **Foreign-key edges**: `fk_table`, `fk_column`, `ref_table`, `ref_column`.
+- **Foreign-key edges**: `fk_table`, `fk_column`, `pk_table`, `pk_column`.
 - **Reverse dependencies**: `referencing`, `referenced`.
 
 Any adapter that produces those columns works. Save one CSV per emitted `.sql`, into the same
@@ -61,24 +61,25 @@ This is the correct, safe path against a **locked-down production database**: th
 runs the read-only queries on their own schedule, in batches if the volume is large, and you only
 ever see the results. Default to one round at a time here so there is a natural review point.
 
-## Direct CLI recipes (Patterns A/C, by hand)
+## Direct CLI recipe (Patterns A/C, by hand)
 
-If the agent's host (or the user) can reach SQL Server directly, two common one-liners turn an
-emitted `.sql` into the CSV `absorb` wants:
-
-```sh
-# sqlcmd (cross-platform), comma-separated, trimmed
-sqlcmd -S <server> -d <db> -i stage/20240101-ProcDefs.sql -s "," -W -o stage/20240101-ProcDefs.csv
-```
+If the agent's host (or the user) can reach SQL Server directly, one line turns an emitted `.sql`
+into the CSV `absorb` wants:
 
 ```powershell
-# PowerShell / Invoke-Sqlcmd
+# PowerShell / Invoke-Sqlcmd (works everywhere PowerShell does, including Linux/macOS)
 Invoke-Sqlcmd -ServerInstance <server> -Database <db> -InputFile stage\20240101-ProcDefs.sql |
-  Export-Csv -NoTypeInformation -Path stage\20240101-ProcDefs.csv
+  Export-Csv -NoTypeInformation -Encoding utf8 -Path stage\20240101-ProcDefs.csv
 ```
 
 > `Invoke-Sqlcmd` can truncate very long `nvarchar` columns (~4000 chars), which is exactly why
 > definitions are pulled in `dNN` chunks rather than as one column; the chunking sidesteps the cap.
+
+**The CSV must be real (RFC-4180-style) CSV** — quoted fields, so embedded commas, quotes, and
+newlines survive. `Export-Csv` qualifies. Plain `sqlcmd -s ","` does **not**: it never quotes,
+prints a dashed separator row under the header, and renders NULL as the literal word `NULL`, so
+module definitions round-tripped through it come back silently corrupted. If `sqlcmd` is all you
+have, post-process its output into proper quoted CSV first.
 
 ## Then absorb
 

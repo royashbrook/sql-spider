@@ -138,11 +138,15 @@ class ContainerCollector : TSqlFragmentVisitor
     // temp tables (create table #t) are scratch, not defined objects -> skip.
     static bool Temp(string n) => n.StartsWith("#");
     void Add(string name, string kind, TSqlFragment node) { if (!Temp(name)) Containers.Add((name, kind, node)); }
-    public override void Visit(CreateProcedureStatement n) => Add(L(n.ProcedureReference.Name), "proc", n);
-    public override void Visit(CreateViewStatement n)      => Add(L(n.SchemaObjectName), "view", n);
-    public override void Visit(CreateFunctionStatement n)  => Add(L(n.Name), "function", n);
+    // visit the BASE statement-body classes, not the concrete Create* ones: ScriptDom's generated
+    // Visit(CreateProcedureStatement) chains up to Visit(ProcedureStatementBody), and the same base
+    // also covers CreateOrAlter*/Alter* -- so `create or alter procedure` (the standard modern idiom)
+    // and plain `alter` redefinitions register as defined objects instead of silently vanishing.
+    public override void Visit(ProcedureStatementBody n)   => Add(L(n.ProcedureReference.Name), "proc", n);
+    public override void Visit(ViewStatementBody n)        => Add(L(n.SchemaObjectName), "view", n);
+    public override void Visit(FunctionStatementBody n)    => Add(L(n.Name), "function", n);
     public override void Visit(CreateTableStatement n)     => Add(L(n.SchemaObjectName), "table", n);
-    public override void Visit(CreateTriggerStatement n)   => Add(L(n.Name), "trigger", n);
+    public override void Visit(TriggerStatementBody n)     => Add(L(n.Name), "trigger", n);
 }
 
 class DepVisitor : TSqlFragmentVisitor
@@ -163,6 +167,14 @@ class DepVisitor : TSqlFragmentVisitor
     public override void Visit(InsertStatement n) { T(n.InsertSpecification?.Target); }
     public override void Visit(UpdateStatement n) { T(n.UpdateSpecification?.Target); }
     public override void Visit(DeleteStatement n) { T(n.DeleteSpecification?.Target); }
+    public override void Visit(MergeStatement n)  { T(n.MergeSpecification?.Target); }
+    // `select ... into <tbl>` creates/fills the target; it's a SchemaObjectName, never a
+    // NamedTableReference, so the generic table-reference path can't see it.
+    public override void Visit(SelectStatement n) { var t = L(n.Into); if (t != null) rawWrites.Add(t); }
+    public override void Visit(TruncateTableStatement n) { var t = L(n.TableName); if (t != null) rawWrites.Add(t); }
+    // the table a trigger fires ON lives in TriggerObject (not a table reference); without this
+    // edge a trigger never connects to its own host table. matches the sqlite dialect (a read).
+    public override void Visit(TriggerStatementBody n) { var t = L(n.TriggerObject?.Name); if (t != null && t != self) rawReads.Add(t); }
     public override void Visit(ExecuteStatement n)
     {
         if (n.ExecuteSpecification?.ExecutableEntity is ExecutableProcedureReference e)
@@ -173,12 +185,21 @@ class DepVisitor : TSqlFragmentVisitor
     }
     // scalar UDF calls in expressions (e.g. dbo.ufnGetStatus(x)) parse as a FunctionCall with a
     // schema-qualified CallTarget; built-ins (getdate(), count()) are unqualified (CallTarget == null) -> skipped.
+    // method calls on hierarchyid/xml/CLR values (OrganizationNode.GetLevel(), payload.value(...))
+    // parse IDENTICALLY to a schema-qualified UDF, so the well-known built-in method names are
+    // filtered -- otherwise each becomes a phantom function node on the frontier.
+    static readonly HashSet<string> BuiltinMethods = new()
+    {
+        "getlevel", "getancestor", "getdescendant", "getreparentedvalue", "getroot", "isdescendantof",
+        "tostring", "parse", "read", "write",
+        "value", "nodes", "exist", "query", "modify"
+    };
     public override void Visit(FunctionCall n)
     {
         if (n.CallTarget != null && n.FunctionName != null)
         {
             var fn = n.FunctionName.Value.ToLowerInvariant();
-            if (fn != self) Funcs.Add(fn);
+            if (fn != self && !BuiltinMethods.Contains(fn)) Funcs.Add(fn);
         }
     }
     // table-valued functions invoked in a FROM / APPLY (e.g. from dbo.ufnTableValued(x))
