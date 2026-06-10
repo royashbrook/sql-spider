@@ -1,5 +1,7 @@
 # sql-spider
 
+[![ci](https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml/badge.svg)](https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml)
+
 > **This repo is a drop-in agent skill.** Clone it into your agent's skills directory (for Claude
 > Code, `.claude/skills/sql-spider/`) and then just ask: *"map my database starting from
 > `Orders`."* The agent reads [`SKILL.md`](SKILL.md), builds the tool on first use, and drives
