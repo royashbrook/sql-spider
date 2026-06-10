@@ -193,6 +193,13 @@ Two things worth knowing, both learned on a real run:
 - **Asking how a table is used.** Reach for graphify `explain X`, not `query X`. A referenced table
   is a sink (edges point inward), so `query` (an outward walk) returns just the table itself, while
   `explain` shows the inbound edges that answer the question.
+- **Name the communities.** Clustering yields placeholder labels ("Community 7"), and a graph with
+  50+ unnamed clusters is unreadable to the human you hand it to. You can almost always infer a
+  real name from the members: the dominant table-name prefixes, the hub objects, and what the
+  procs in the cluster actually do (billing, dispatch, pay rating, auditing). After `cluster-only`,
+  read each community's member list and rename it to a short domain-true label (edit the community
+  labels in graphify's `graph.json` / report). Ten minutes of naming is the difference between a
+  graph the owner can navigate and one only you can. Offer it; the human will say yes.
 
 In our own use we mapped a billing subsystem to a closed graph and answered "what depends on this"
 straight from it, opening only the one procedure the graph pointed at. graphify's own docs cover the
