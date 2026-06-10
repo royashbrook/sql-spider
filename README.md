@@ -359,9 +359,10 @@ And the payoff, measured rather than guessed: building the structural layer orig
 **2,308 KB of raw SQL across 121 read-only queries (~580k tokens of material)**. Re-verifying every
 structural claim in our internal documentation against the finished graph (62 claims) consumed
 **~15 KB (~4k tokens) and zero new database queries, about 1% of the original cost.** That is the
-working model: the graph is the *finder*. You pay the pull cost once, then dependency questions are
-answered from the graph, and you only open the underlying SQL when the graph points you at the one
-object that matters.
+working model: the graph is the *finder*. The pull cost is not an extra cost, you pay it anyway the
+first time you analyze the database at all; the graph is what keeps you from paying it again on
+every question. Dependency questions are answered from the graph, and you only open the underlying
+SQL when the graph points you at the one object that matters.
 
 ## Requirements
 
