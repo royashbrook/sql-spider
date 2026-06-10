@@ -38,7 +38,34 @@ public static class Viz
         using var doc = JsonDocument.Parse(File.ReadAllText(graphPath));
         var root = doc.RootElement;
 
-        // ---- nodes: id, label, kind -> vis-network node {id,label,color,group,title} ----
+        // ---- links first: source, target, relation -> vis-network edge {from,to,title,label} ----
+        // parsed before the nodes so each node's degree (its edge count, in + out) is known when the
+        // node is emitted; degree drives node size so the hubs read as hubs instead of uniform dots.
+        var visEdges = new List<Dictionary<string, object>>();
+        var degree = new Dictionary<string, int>();
+        if (root.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var l in links.EnumerateArray())
+            {
+                var from = l.TryGetProperty("source", out var ps) ? ps.GetString() ?? "" : "";
+                var to   = l.TryGetProperty("target", out var pt) ? pt.GetString() ?? "" : "";
+                if (from.Length == 0 || to.Length == 0) continue;
+                var rel  = l.TryGetProperty("relation", out var pr) ? pr.GetString() ?? "" : "";
+                degree[from] = degree.GetValueOrDefault(from) + 1;
+                degree[to]   = degree.GetValueOrDefault(to) + 1;
+                visEdges.Add(new()
+                {
+                    ["from"] = from, ["to"] = to,
+                    ["title"] = rel,        // shown on hover
+                    ["label"] = rel,        // shown on the edge
+                    ["arrows"] = "to",
+                });
+            }
+        }
+
+        // ---- nodes: id, label, kind -> vis-network node {id,label,color,group,title,value} ----
+        // `value` (the node's degree) feeds vis-network's scaling, sized on a log scale via
+        // customScalingFunction in the template so a 600-edge hub doesn't flatten everything else.
         var visNodes = new List<Dictionary<string, object>>();
         var kindsSeen = new SortedSet<string>();
         if (root.TryGetProperty("nodes", out var nodes) && nodes.ValueKind == JsonValueKind.Array)
@@ -54,31 +81,13 @@ public static class Viz
                     kind = pk.GetString() ?? "script";
                 kindsSeen.Add(kind);
                 var color = Palette.TryGetValue(kind, out var c) ? c : Fallback;
+                var deg   = degree.GetValueOrDefault(id);
                 visNodes.Add(new()
                 {
                     ["id"] = id, ["label"] = label, ["group"] = kind,
-                    ["title"] = $"{label} ({kind})",
+                    ["title"] = $"{label} ({kind}, {deg} connection{(deg == 1 ? "" : "s")})",
                     ["color"] = color,
-                });
-            }
-        }
-
-        // ---- links: source, target, relation -> vis-network edge {from,to,title,label} ----
-        var visEdges = new List<Dictionary<string, object>>();
-        if (root.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var l in links.EnumerateArray())
-            {
-                var from = l.TryGetProperty("source", out var ps) ? ps.GetString() ?? "" : "";
-                var to   = l.TryGetProperty("target", out var pt) ? pt.GetString() ?? "" : "";
-                if (from.Length == 0 || to.Length == 0) continue;
-                var rel  = l.TryGetProperty("relation", out var pr) ? pr.GetString() ?? "" : "";
-                visEdges.Add(new()
-                {
-                    ["from"] = from, ["to"] = to,
-                    ["title"] = rel,        // shown on hover
-                    ["label"] = rel,        // shown on the edge
-                    ["arrows"] = "to",
+                    ["value"] = deg,
                 });
             }
         }
@@ -140,7 +149,19 @@ public static class Viz
   const container = document.getElementById("graph");
   const data = { nodes, edges };
   const options = {
-    nodes: { shape: "dot", size: 14, font: { size: 13, face: "system-ui" } },
+    nodes: {
+      shape: "dot", size: 14, font: { size: 13, face: "system-ui" },
+      // size by degree (the node's `value`), log-scaled: hubs like a core table with hundreds of
+      // edges read big, leaf columns read small, and one god-node can't flatten the middle tiers.
+      scaling: {
+        min: 4, max: 56,
+        label: { enabled: true, min: 9, max: 30 },
+        customScalingFunction: (min, max, total, value) => {
+          if (max === min) return 0.5;
+          return Math.log1p(value) / Math.log1p(max);
+        }
+      }
+    },
     edges: {
       font: { size: 10, color: "#777", align: "middle", strokeWidth: 3, strokeColor: "#fff" },
       color: { color: "#bbb", highlight: "#555", hover: "#555" },
