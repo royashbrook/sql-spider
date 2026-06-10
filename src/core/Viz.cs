@@ -88,9 +88,17 @@ public static class Viz
                     ["title"] = $"{label} ({kind}, {deg} connection{(deg == 1 ? "" : "s")})",
                     ["color"] = color,
                     ["value"] = deg,
+                    // mass scales with degree so the physics makes hubs PUSH leaves out of the
+                    // way instead of letting everything pile into one even-density blob.
+                    ["mass"] = 1 + Math.Log2(1 + deg),
                 });
             }
         }
+
+        // on big graphs, thousands of rendered edge labels are unreadable soup and a perf hit;
+        // drop the printed label (the hover title keeps the relation available).
+        if (visEdges.Count > 1500)
+            foreach (var e in visEdges) e.Remove("label");
 
         var jsonOpts = new JsonSerializerOptions { WriteIndented = false };
         var nodesJson  = JsonSerializer.Serialize(visNodes, jsonOpts);
@@ -120,7 +128,7 @@ public static class Viz
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sql-spider graph: {{srcName}}</title>
-<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script src="https://unpkg.com/vis-network@10.1.0/standalone/umd/vis-network.min.js" integrity="sha384-Kp7cMaDnHOrgpE8FT6l7tUuGIo7kBcBVcttockpXN/whrsQBcy9ZcpKmr/1a/nMo" crossorigin="anonymous"></script>
 <style>
   html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
   #graph { width: 100%; height: 100vh; }
@@ -154,11 +162,13 @@ public static class Viz
       // size by degree (the node's `value`), log-scaled: hubs like a core table with hundreds of
       // edges read big, leaf columns read small, and one god-node can't flatten the middle tiers.
       scaling: {
-        min: 4, max: 56,
+        min: 3, max: 72,
         label: { enabled: true, min: 9, max: 30 },
+        // log ratio with a >1 exponent: keeps the log's god-node taming but pushes the low-mid
+        // tier smaller, so on a 3k-node graph the hubs visibly tower instead of merely leading.
         customScalingFunction: (min, max, total, value) => {
           if (max === min) return 0.5;
-          return Math.log1p(value) / Math.log1p(max);
+          return Math.pow(Math.log1p(value) / Math.log1p(max), 1.25);
         }
       }
     },
@@ -171,7 +181,7 @@ public static class Viz
     physics: {
       enabled: true,
       solver: "forceAtlas2Based",
-      forceAtlas2Based: { gravitationalConstant: -50, springLength: 110, springConstant: 0.08 },
+      forceAtlas2Based: { gravitationalConstant: -50, springLength: 110, springConstant: 0.08, avoidOverlap: 0.5 },
       stabilization: { iterations: 200 }
     },
     interaction: { hover: true, dragNodes: true, tooltipDelay: 120, navigationButtons: false }

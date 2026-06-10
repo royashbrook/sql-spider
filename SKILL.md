@@ -224,7 +224,7 @@ shows the graph, and sql-spider's job is done once it is closed.
 
 | command | what it does |
 |---|---|
-| `extract <corpus-dir> [graph.json] [frontier.json] [--dialect tsql\|sqlite] [--graphify [out.json]] [--graphify-standard]` | parse `*.sql` into a dependency graph + frontier + audits; `--graphify` also writes a graphify-format graph (`--graphify-standard` uses graphify's blessed relation vocab) |
+| `extract <corpus-dir> [graph.json] [frontier.json] [--dialect tsql\|sqlite] [--graphify[=out.json]] [--graphify-standard]` | parse `*.sql` into a dependency graph + frontier + audits; `--graphify` also writes a graphify-format graph (`--graphify-standard` uses graphify's blessed relation vocab) |
 | `seed <root-object> <outdir>` | cold-start pull queries for one root on an empty corpus |
 | `generate <frontier.json> <outdir>` | forward-pull queries for the current frontier |
 | `reverse <referencers.csv> <outdir> [--roots a b]` | pull module defs of objects that reference the roots (one reverse level) |

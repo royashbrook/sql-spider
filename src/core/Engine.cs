@@ -27,11 +27,11 @@ public static class Engine
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--dialect" && i + 1 < args.Length) dialect = args[++i].Trim().ToLowerInvariant();
-            else if (args[i] == "--graphify")
-            {
-                graphify = true;
-                if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) graphifyOut = args[++i];
-            }
+            // value only via --graphify=path: a bare flag that consumed the NEXT token used to
+            // swallow positionals (extract corpus --graphify graph.json frontier.json silently
+            // destroyed the native graph). the = form is unambiguous.
+            else if (args[i] == "--graphify") graphify = true;
+            else if (args[i].StartsWith("--graphify=")) { graphify = true; graphifyOut = args[i]["--graphify=".Length..]; }
             else if (args[i] == "--graphify-standard") { graphify = true; graphifyStandard = true; }
             else pos.Add(args[i]);
         }

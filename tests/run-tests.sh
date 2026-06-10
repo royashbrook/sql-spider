@@ -58,6 +58,12 @@ printf 'create procedure dbo.p as begin select id into dbo.archive_new from dbo.
 out=$(RUN extract "$WORK/wr" "$WORK/wr/g.json" "$WORK/wr/f.json" 2>&1)
 check "select-into / truncate / merge targets captured (5 frontier tables)" "$out" "5 undefined tables"
 
+mkdir -p "$WORK/insexec"
+printf 'create procedure dbo.p as begin insert into #t_rates exec dbo.get_rates @a, @b; end\n' > "$WORK/insexec/p.sql"
+out=$(RUN extract "$WORK/insexec" "$WORK/insexec/g.json" "$WORK/insexec/f.json" 2>&1)
+check "INSERT...EXEC emits a calls edge (frontier has the proc)" "$out" "FRONTIER: 1 undefined procs"
+check "frontier names the exec'd proc" "$(cat "$WORK/insexec/f.json")" "get_rates"
+
 mkdir -p "$WORK/meth"
 printf 'create table dbo.emp (node hierarchyid);\ngo\ncreate procedure dbo.p as select node.GetLevel() from dbo.emp;\n' > "$WORK/meth/x.sql"
 out=$(RUN extract "$WORK/meth" "$WORK/meth/g.json" "$WORK/meth/f.json" 2>&1)
@@ -89,6 +95,18 @@ check "fk materialized as alter-table DDL" "$(cat "$WORK/ab/corpus/"*.sql)" "add
 out=$(RUN extract "$WORK/ab/corpus" 2>&1)
 check "fk round-trip closes the ring" "$out" "OK: single connected component"
 check "fk round-trip leaves no frontier" "$out" "FRONTIER: 0 undefined procs, 0 undefined tables"
+
+echo "== bucket-1 hardening =="
+mkdir -p "$WORK/glob/corpus" "$WORK/glob/stage"
+printf 'object_name,object_type,d00\nmyproc,P,create procedure myproc as select 1\n' > "$WORK/glob/stage/defs.csv"
+RUN absorb "$WORK/glob/stage/*.csv" --corpus "$WORK/glob/corpus" >/dev/null 2>&1   # QUOTED glob = literal arg, like windows
+[ -f "$WORK/glob/corpus/myproc.sql" ] && ok "literal glob arg expands in-process (windows path)" || fail "literal glob arg expands in-process"
+RUN absorb "$WORK/glob/stage/*.nope" --corpus "$WORK/glob/corpus" >/dev/null 2>&1; rc=$?
+[ $rc -ne 0 ] && ok "zero-absorb exits nonzero" || fail "zero-absorb exits nonzero (got $rc)"
+mkdir -p "$WORK/gfeq"
+printf 'create table t (id int);\n' > "$WORK/gfeq/t.sql"
+RUN extract "$WORK/gfeq" "$WORK/gfeq/g.json" "$WORK/gfeq/f.json" --graphify=$WORK/gfeq/gf.json >/dev/null 2>&1
+[ -f "$WORK/gfeq/gf.json" ] && [ -f "$WORK/gfeq/g.json" ] && ok "--graphify=path writes both files, eats no positionals" || fail "--graphify=path form"
 
 echo "== guards and exit codes =="
 mkdir -p "$WORK/empty"

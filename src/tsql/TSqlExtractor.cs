@@ -175,9 +175,12 @@ class DepVisitor : TSqlFragmentVisitor
     // the table a trigger fires ON lives in TriggerObject (not a table reference); without this
     // edge a trigger never connects to its own host table. matches the sqlite dialect (a read).
     public override void Visit(TriggerStatementBody n) { var t = L(n.TriggerObject?.Name); if (t != null && t != self) rawReads.Add(t); }
-    public override void Visit(ExecuteStatement n)
+    // visit the SPECIFICATION, not just ExecuteStatement: `insert into #t exec proc ...`
+    // (INSERT...EXEC) wraps the execute inside the insert's source, so a statement-level
+    // visit never sees the call. ExecuteSpecification lives inside both shapes.
+    public override void Visit(ExecuteSpecification n)
     {
-        if (n.ExecuteSpecification?.ExecutableEntity is ExecutableProcedureReference e)
+        if (n.ExecutableEntity is ExecutableProcedureReference e)
         {
             var p = L(e.ProcedureReference?.ProcedureReference?.Name);
             if (p != null && p != self) Calls.Add(p);

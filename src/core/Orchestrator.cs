@@ -249,8 +249,24 @@ public static class Orchestrator
         // behavior wrote a sidecar json that NOTHING read; the loop silently declared closure early.)
         var fkParked = LoadFkPark(corpus);
 
-        int wrote = 0;
+        // windows shells don't expand globs for native exes, so  arrives as a
+        // literal string; expand it in-process so the documented command works everywhere.
+        var expanded = new List<string>();
         foreach (var path in csvs)
+        {
+            if (path.Contains('*') || path.Contains('?'))
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(dir)) dir = ".";
+                var matches = Directory.Exists(dir) ? Directory.GetFiles(dir, Path.GetFileName(path)) : Array.Empty<string>();
+                if (matches.Length == 0) Console.WriteLine($"  {path}: no files match");
+                expanded.AddRange(matches.OrderBy(x => x));
+            }
+            else expanded.Add(path);
+        }
+
+        int wrote = 0;
+        foreach (var path in expanded)
         {
             if (!File.Exists(path)) { Console.WriteLine($"  {path}: not found"); continue; }
             if (new FileInfo(path).Length == 0) { Console.WriteLine($"  {path}: empty (no rows)"); continue; }
@@ -325,6 +341,7 @@ public static class Orchestrator
         }
         MaterializeFks(corpus, fkParked);
         Console.WriteLine($"absorbed -> {wrote} new .sql files in {corpus}");
+        if (wrote == 0) { Console.Error.WriteLine("absorb: nothing absorbed -- check the CSV paths/contents"); return 1; }
         return 0;
     }
 

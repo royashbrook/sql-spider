@@ -181,7 +181,7 @@ compiles if needed then runs. (For a standalone `sql-spider` command, `dotnet pu
 `dotnet tool install`.)
 
 ```
-dotnet run -- extract  <corpus-dir> [graph.json] [frontier.json] [--dialect tsql|sqlite] [--graphify [out.json]]
+dotnet run -- extract  <corpus-dir> [graph.json] [frontier.json] [--dialect tsql|sqlite] [--graphify[=out.json]]
 dotnet run -- seed     <root-object> <outdir>
 dotnet run -- generate <frontier.json> <outdir>
 dotnet run -- reverse  <referencers.csv> <outdir> [--roots a b ...]
