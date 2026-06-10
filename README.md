@@ -355,6 +355,14 @@ As a quick sanity check on the finished tool: seeding from a single table and pu
 ~1,500 referencers produced a **94-node, single-connected-component** graph in two rounds. The loop
 holds.
 
+And the payoff, measured rather than guessed: building the structural layer originally pulled
+**2,308 KB of raw SQL across 121 read-only queries (~580k tokens of material)**. Re-verifying every
+structural claim in our internal documentation against the finished graph (62 claims) consumed
+**~15 KB (~4k tokens) and zero new database queries — about 1% of the original cost.** That is the
+working model: the graph is the *finder*. You pay the pull cost once, then dependency questions are
+answered from the graph, and you only open the underlying SQL when the graph points you at the one
+object that matters.
+
 ## Requirements
 
 - .NET 10 SDK
