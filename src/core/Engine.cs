@@ -92,6 +92,10 @@ public static class Engine
                 // a fallback bare-script / index-only table reference is not "defined".
                 if (c.Defined) defined[container] = c.Kind;
                 AddNode(container, container, c.Kind, fname);
+                // the DEFINING file is authoritative for a node's source_file and kind -- without
+                // this, whichever file happens to sort first and merely REFERENCE the object claims
+                // its source (a table's "source" showed as some random proc instead of its own DDL).
+                if (c.Defined && !Noise(container)) nodes[container] = (container, c.Kind, fname);
 
                 foreach (var t in c.Reads)  { if (Noise(t)) continue; AddNode(t, t, "table", fname);    edges.Add((container, t, "references", fname)); }
                 foreach (var t in c.Writes) { if (Noise(t)) continue; AddNode(t, t, "table", fname);    edges.Add((container, t, "writes", fname)); }
