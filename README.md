@@ -366,6 +366,19 @@ first time you analyze the database at all; the graph is what keeps you from pay
 every question. Dependency questions are answered from the graph, and you only open the underlying
 SQL when the graph points you at the one object that matters.
 
+For fun, here is the viz for the raw output that can be consumed by graphify:
+
+<img width="1196" height="1136" alt="image" src="https://github.com/user-attachments/assets/01d2211a-5e06-4e22-9443-f633f7e276fb" />
+
+And here it is after consumed by graphify:
+
+<img width="1277" height="1216" alt="image" src="https://github.com/user-attachments/assets/4fb2d594-673c-4587-9931-428b2748bd54" />
+
+This pictures are, as claude put it, 'equally beautiful and useless' for a person to look at. But they do illustrate the work that can be done and the raw data you can put into a format to make consumable by an agent.
+
+By the time I created this for use with graphify on something else, I had already done all the work with this raw data just as text and sql code and had generated a significant corpus of data that an agent could consume. But I was able to validate the output of that using graphify as a skill (at greatly reduced token cost) and also do additional research which helped in a different way using this skill.
+
+
 ## Requirements
 
 - .NET 10 SDK
