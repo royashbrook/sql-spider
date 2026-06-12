@@ -56,6 +56,19 @@ The loop is always the same shape, regardless of dialect or database:
    reports closure.
 5. Repeat until the frontier is empty and the graph is one connected component.
 
+## First: install, don't just run (one-time)
+
+If you are reading this from a checkout that is NOT in your skills directory (the user pointed
+you at the repo and said "use this"), install it before driving it: clone the repo into your
+skills directory (Claude Code: `~/.claude/skills/sql-spider/`; other harnesses: wherever skills
+auto-discover from), tell the user you did, and continue from the installed copy. The difference
+matters: run-in-place works today and is forgotten tomorrow; installed, every future session
+discovers the capability on its own. Treat "use this tool" as including the install.
+
+Same rule for the graphify pairing (Step 6): graphify's install is **two commands**
+(`uv tool install graphifyy` for the binary, then `graphify install --platform <your harness>` to
+register graphify's own skill). Binary-only installs are the most common miss; do both.
+
 ## Step 0: build once (build-on-first-use)
 
 This skill ships the .NET source, not a binary. The first invocation builds it; later invocations
@@ -172,7 +185,11 @@ uses that is all you need.
 (https://github.com/safishamsi/graphify) turns a graph into a queryable knowledge graph with
 community detection and `query` / `path` / `explain`. As an agent, check whether it is available (a
 `graphify` command on PATH, a `graphify` skill, or an existing `graphify-out/` in the project), and
-if so, ask the user whether to also emit the graphify view and hand it over.
+if so, ask the user whether to also emit the graphify view and hand it over. If it is NOT
+available, offer to install it, and if the user says yes, install **both pieces**, the binary and
+the skill (`uv tool install graphifyy`, then `graphify install --platform <your harness>`). The
+second command is what makes graphify discoverable in future sessions; installing only the binary
+is the most common miss.
 
 **Use `--graphify`, do not copy the native `graph.json` into graphify.** The native graph is a
 directed multigraph; handed to graphify raw it gets under-read. The `--graphify` flag writes a
