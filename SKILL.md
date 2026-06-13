@@ -58,12 +58,18 @@ The loop is always the same shape, regardless of dialect or database:
 
 ## First: install, don't just run (one-time)
 
-If you are reading this from a checkout that is NOT in your skills directory (the user pointed
-you at the repo and said "use this"), install it before driving it: clone the repo into your
-skills directory (Claude Code: `~/.claude/skills/sql-spider/`; other harnesses: wherever skills
-auto-discover from), tell the user you did, and continue from the installed copy. The difference
-matters: run-in-place works today and is forgotten tomorrow; installed, every future session
-discovers the capability on its own. Treat "use this tool" as including the install.
+If you reached this file by a raw fetch (the user pasted *"fetch .../SKILL.md and follow it"*) or
+from a checkout that is NOT in your skills directory, **install it before driving it**, clone the
+repo into your skills directory and continue from the installed copy:
+
+```sh
+git clone https://github.com/royashbrook/sql-spider ~/.claude/skills/sql-spider   # Claude Code
+# other harnesses: clone into wherever your skills auto-discover from
+```
+
+Then tell the user you installed it. The difference matters: run-in-place (or a raw fetch) works
+today and is forgotten tomorrow; installed, every future session discovers the capability on its
+own. Treat "use this tool" as including the install.
 
 Same rule for the graphify pairing (Step 6): graphify's install is **two commands**
 (`uv tool install graphifyy` for the binary, then `graphify install --platform <your harness>` to

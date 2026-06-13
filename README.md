@@ -4,10 +4,14 @@
 
 > **sql-spider is a drop-in agent skill: you point an agent at it and it maps your database.**
 >
-> **Fastest path (anyone):** tell your agent *"install this skill from
-> https://github.com/royashbrook/sql-spider, then map my database starting from `Orders`."* It
-> reads [`SKILL.md`](SKILL.md), installs itself so it's there next time, builds the tool, and
-> drives the read-only spider loop to a closed graph. That's the whole intended use.
+> **Fastest path (anyone):** paste this one line to your agent:
+>
+> > `Fetch https://raw.githubusercontent.com/royashbrook/sql-spider/main/SKILL.md and follow it to install and use sql-spider.`
+>
+> The agent fetches the instructions, installs the skill so it's there next time, builds the tool,
+> and drives the read-only spider loop to a closed graph. No git knowledge needed on your end.
+> (Equivalent in plain words: *"install this skill from https://github.com/royashbrook/sql-spider,
+> then map my database starting from `Orders`."*) That's the whole intended use.
 >
 > **If you are an AGENT reading this README:** your entry point is [`SKILL.md`](SKILL.md), go
 > there. First clone the repo into your skills directory so the capability persists
