@@ -1,6 +1,20 @@
-# sql-spider
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo.svg" width="260" alt="sql-spider">
+  </picture>
+</p>
 
-[![ci](https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml/badge.svg)](https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml)
+<h1 align="center">sql-spider</h1>
+
+<p align="center"><em>seed one object. it crawls the whole dependency web , one connected component, zero orphans.</em></p>
+
+<p align="center">
+  <a href="https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml"><img src="https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <img src="https://img.shields.io/badge/.NET-10-111111?style=flat-square" alt=".NET 10">
+  <img src="https://img.shields.io/badge/deterministic-yes-111111?style=flat-square" alt="deterministic">
+  <img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square" alt="MIT">
+</p>
 
 > **sql-spider is a drop-in agent skill: you point an agent at it and it maps your database.**
 >
@@ -28,6 +42,12 @@
 > them against your database, the results feed back, round by round, until the graph closes. That
 > loop is an agent's job, not a fun manual one. The tool never connects to a database itself; the
 > agent (or you) is the adapter. So the move is the same one above: point your agent at it.
+
+<p align="center">
+  <img width="380" alt="the raw dependency graph sql-spider produces" src="https://github.com/user-attachments/assets/01d2211a-5e06-4e22-9443-f633f7e276fb">
+  <img width="380" alt="the same graph after graphify clusters it" src="https://github.com/user-attachments/assets/4fb2d594-673c-4587-9931-428b2748bd54">
+</p>
+<p align="center"><sub>the closed graph (left), and the same graph after graphify clusters it (right) , "equally beautiful and useless" to a human, and exactly the structured input an agent wants.</sub></p>
 
 A deterministic SQL dependency-graph extractor and spider. The graph engine is
 **dialect-agnostic**: only the "parse SQL into dependency facts" step is dialect-specific,
@@ -395,16 +415,6 @@ working model: the graph is the *finder*. The pull cost is not an extra cost, yo
 first time you analyze the database at all; the graph is what keeps you from paying it again on
 every question. Dependency questions are answered from the graph, and you only open the underlying
 SQL when the graph points you at the one object that matters.
-
-For fun, here is the viz for the raw output that can be consumed by graphify:
-
-<img width="1196" height="1136" alt="image" src="https://github.com/user-attachments/assets/01d2211a-5e06-4e22-9443-f633f7e276fb" />
-
-And here it is after consumed by graphify:
-
-<img width="1277" height="1216" alt="image" src="https://github.com/user-attachments/assets/4fb2d594-673c-4587-9931-428b2748bd54" />
-
-This pictures are, as claude put it, 'equally beautiful and useless' for a person to look at. But they do illustrate the work that can be done and the raw data you can put into a format to make consumable by an agent.
 
 By the time I created this for use with graphify on something else, I had already done all the work with this raw data just as text and sql code and had generated a significant corpus of data that an agent could consume. But I was able to validate the output of that using graphify as a skill (at greatly reduced token cost) and also do additional research which helped in a different way using this skill.
 
