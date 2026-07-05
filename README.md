@@ -7,7 +7,7 @@
 
 <h1 align="center">sql-spider</h1>
 
-<p align="center"><em>seed one object. it crawls the whole dependency web , one connected component, zero orphans.</em></p>
+<p align="center"><em>seed one object. it crawls the whole dependency web, one connected component, zero orphans.</em></p>
 
 <p align="center">
   <a href="https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml"><img src="https://github.com/royashbrook/sql-spider/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
@@ -47,7 +47,7 @@
   <img width="380" alt="the raw dependency graph sql-spider produces" src="https://github.com/user-attachments/assets/01d2211a-5e06-4e22-9443-f633f7e276fb">
   <img width="380" alt="the same graph after graphify clusters it" src="https://github.com/user-attachments/assets/4fb2d594-673c-4587-9931-428b2748bd54">
 </p>
-<p align="center"><sub>the closed graph (left), and the same graph after graphify clusters it (right) , "equally beautiful and useless" to a human, and exactly the structured input an agent wants.</sub></p>
+<p align="center"><sub>the closed graph (left), and the same graph after graphify clusters it (right), "equally beautiful and useless" to a human, and exactly the structured input an agent wants.</sub></p>
 
 A deterministic SQL dependency-graph extractor and spider. The graph engine is
 **dialect-agnostic**: only the "parse SQL into dependency facts" step is dialect-specific,
