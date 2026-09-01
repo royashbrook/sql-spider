@@ -1,19 +1,15 @@
 ---
 name: sql-spider
 description: >-
-  Build a deterministic dependency graph of a SQL database (every table, view, stored procedure,
-  function, and trigger, plus the edges between them) and spider outward from a seed object until
-  the graph is CLOSED (one connected component, zero orphans). Use when the user wants to map what
-  depends on what in a database: "map this database", "build a dependency graph of these procs",
-  "what references table X", "what does proc Y touch", "find the closure around this table", "spider
-  the schema", "I can't connect to the DB directly, give me queries I can run". The engine never
-  opens a database connection: it emits READ-ONLY queries and ingests CSV results, so the agent is
-  the adapter: you run each emitted query however you can reach the database (a connected SQL tool, a
-  read-only query bridge, or by handing it to the user), feed the results back, and drive the loop to
-  closure. Fully deterministic (parses SQL into an AST, reads dependencies off the tree), no live
-  connection needed to build the graph. T-SQL and SQLite ship; other dialects are a small adapter.
-  Optionally projects the closed graph into graphify's format (`--graphify`) so it plugs straight
-  into graphify for community detection, query, path, and explain.
+  Build a deterministic dependency graph of SQL tables, views, procedures, functions, and triggers,
+  then spider outward from a seed until the requested dependency frontier is closed. Use for "map
+  this database", "what references table X", "what does proc Y touch", "find the closure around
+  this table", "spider the schema", or "I cannot connect directly, give me queries I can run". The
+  engine never opens a database connection: it emits READ-ONLY queries and ingests CSV results, so
+  you, the agent, are the adapter. Run each query through whatever database access exists, feed the
+  result back, and drive the loop to closure. SQL is parsed deterministically into an AST rather
+  than guessed. T-SQL and SQLite ship; other dialects are adapters. Use `--graphify` to project a
+  closed graph into graphify for community detection, query, path, and explain.
 ---
 
 # sql-spider
